@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useDirectorStore } from '../director/store'
 import { useStickerEditor } from '../editor/store'
 import { useProfileStore } from '../profile/store'
+import { useAuth } from '../product/auth'
 import './tools-menu.css'
 
 type Tool = 'stickers' | 'director' | 'profile'
@@ -22,6 +23,8 @@ export default function ToolsMenu() {
   const profileOpen = useProfileStore((state) => state.open)
   const setProfileOpen = useProfileStore((state) => state.setOpen)
   const editorOpen = stickersOpen || directorOpen || profileOpen
+  const account = useAuth((state) => state.account)
+  const ready = useAuth((state) => state.ready)
 
   useEffect(() => {
     const closeOnOutsidePress = (event: PointerEvent) => {
@@ -39,6 +42,12 @@ export default function ToolsMenu() {
   }
 
   if (editorOpen) return null
+
+  if (!ready || !account?.unlocked) return (
+    <a className="tm-unlock" href="/account" aria-label="解锁编辑器" title="解锁编辑器">
+      <span>¥</span><b>3</b>
+    </a>
+  )
 
   return (
     <div className="tools-menu" ref={root}>

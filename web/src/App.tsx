@@ -11,6 +11,7 @@ import StickerEditor from './editor/StickerEditor'
 import DirectorEditor from './director/DirectorEditor'
 import ProfileEditor from './profile/ProfileEditor'
 import ToolsMenu from './tools/ToolsMenu'
+import { useAuth } from './product/auth'
 import { selectProfile, useProfileStore, type ProfileData } from './profile/store'
 import { useStore } from './store'
 
@@ -102,9 +103,11 @@ export default function App() {
   const profileConfig = useProfileStore((state) => state.config)
   const loadProfile = useProfileStore((state) => state.load)
   const profile = selectProfile(profileConfig)
+  const hydrateAccount = useAuth((state) => state.hydrate)
   useEffect(() => {
     loadProfile()
-  }, [loadProfile])
+    hydrateAccount()
+  }, [loadProfile, hydrateAccount])
   const { scrollY } = useScroll()
   // 作品区蒙层：以作品区顶部从视口底进入到视口中部的进度，驱动 3D 渐暗 + 模糊
   const worksRef = useRef(null)
@@ -191,10 +194,10 @@ export default function App() {
       </motion.div>
 
       {/* 全屏胶片噪点蒙层（multiply 混合） */}
-      {import.meta.env.DEV && <StickerEditor />}
-      {import.meta.env.DEV && <DirectorEditor />}
-      {import.meta.env.DEV && <ProfileEditor />}
-      {import.meta.env.DEV && <ToolsMenu />}
+      <StickerEditor />
+      <DirectorEditor />
+      <ProfileEditor />
+      <ToolsMenu />
 
       <NoiseOverlay />
 

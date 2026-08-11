@@ -9,6 +9,29 @@
   font-family: 'Helvetica Neue', 'PingFang SC', system-ui, sans-serif;
 }
 
+.tm-unlock {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 2200;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 217, 179, 0.62);
+  border-radius: 4px;
+  background: rgba(13, 18, 25, 0.64);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  color: #ffd9b3;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+.tm-unlock span { font-size: 12px; }
+.tm-unlock b { font-size: 14px; font-weight: 500; }
+
 .tm-trigger {
   display: grid;
   place-content: center;
@@ -92,4 +115,5 @@
 
 @media (max-width: 640px) {
   .tools-menu { bottom: 12px; left: 12px; }
+  .tm-unlock { bottom: 12px; left: 12px; }
 }
