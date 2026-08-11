@@ -5,3 +5,9 @@
 .account-main form input { height: 48px; border: 1px solid rgba(244, 241, 234, 0.2); border-radius: 3px; background: rgba(244, 241, 234, 0.05); color: #f4f1ea; padding: 0 13px; font: 14px inherit; }
 .account-main form .primary-action:disabled, .account-card .primary-action:disabled { cursor: wait; opacity: 0.6; }
 .account-error { color: #ffb4a2 !important; line-height: 1.6; }
+.wechat-payment { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(5, 8, 12, 0.68); backdrop-filter: blur(10px); }
+.wechat-payment-card { width: min(360px, 100%); padding: 28px; background: rgba(21, 28, 36, 0.96); border: 1px solid rgba(244, 241, 234, 0.2); box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5); color: #f4f1ea; text-align: center; }
+.wechat-payment-card h2 { margin: 8px 0; font-size: 24px; }
+.wechat-payment-card p { color: rgba(244, 241, 234, 0.68); line-height: 1.7; }
+.wechat-payment-card img, .qr-loading { display: block; width: min(260px, 100%); aspect-ratio: 1; margin: 20px auto; background: #fff; }
+.qr-loading { display: grid; place-items: center; color: #20252c; font-size: 13px; }

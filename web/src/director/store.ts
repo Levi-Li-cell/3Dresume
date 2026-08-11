@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { apiJson } from '../product/api'
 import {
   EMPTY_DIRECTOR_CONFIG,
   EMPTY_RUNTIME,
@@ -88,9 +89,7 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   load: async () => {
     set({ busy: true, status: '加载运镜配置...' })
     try {
-      const response = await fetch('/api/director', { credentials: 'include' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
+      const result = await apiJson<{ config: unknown }>('/api/director')
       const config = normalizeConfig(result.config)
       set({ config, status: config.keyframes.length ? '' : '当前没有额外运镜关键帧' })
     } catch (error) {
@@ -102,14 +101,13 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   save: async () => {
     set({ busy: true, status: '保存中...' })
     try {
-      const response = await fetch('/api/director', {
+      const result = await apiJson<any>('/api/director', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(get().config),
       })
-      const result = await response.json()
       if (!result.ok) throw new Error(result.error || '保存失败')
-      set({ status: '已写入 public/director/camera-overrides.json' })
+      set({ status: '已保存到你的云端项目' })
     } catch (error) {
       set({ status: `保存失败: ${String(error)}` })
     } finally {

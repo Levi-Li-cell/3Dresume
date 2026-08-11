@@ -8,15 +8,18 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "eslint .",
-    "commerce": "node ../server/commerce-server.mjs"
+    "typecheck:api": "tsc -p tsconfig.api.json",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.16.3",
+    "@supabase/supabase-js": "^2.112.3",
+    "@vercel/blob": "^2.8.0",
     "framer-motion": "^11.18.2",
     "gsap": "^3.15.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.169.0",

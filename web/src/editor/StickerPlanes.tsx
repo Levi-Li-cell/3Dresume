@@ -22,6 +22,7 @@ export default function StickerPlanes() {
   const raycaster = useRef(new THREE.Raycaster())
 
   const files = useStickerEditor((s) => s.files)
+  const assetSignature = useStickerEditor((s) => s.files.map((file) => `${file}:${s.configs[file]?.assetUrl || ''}`).join('|'))
   const placeMode = useStickerEditor((s) => s.placeMode)
   const selected = useStickerEditor((s) => s.selected)
   const baked = useStickerEditor((s) => s.baked)
@@ -37,7 +38,8 @@ export default function StickerPlanes() {
     const map = planes.current
     for (const f of files) {
       if (map.has(f)) continue
-      const tex = loader.load(`/stickers/${f}`, (t) => {
+      const source = useStickerEditor.getState().configs[f]?.assetUrl || `${import.meta.env.BASE_URL}stickers/${f}`
+      const tex = loader.load(source, (t) => {
         const img = t.image as HTMLImageElement | undefined
         const w = img?.naturalWidth || img?.width || 1
         const h = img?.naturalHeight || img?.height || 1
@@ -75,7 +77,7 @@ export default function StickerPlanes() {
         aspects.current.delete(f)
       }
     }
-  }, [files, man])
+  }, [assetSignature, files, man])
 
   // 每帧把配置同步到平面（拖动滑条时无需重建纹理/几何）
   // 烘焙后把所有编辑器平面隐藏
@@ -190,6 +192,5 @@ export default function StickerPlanes() {
 
   return null
 }
-
 
 

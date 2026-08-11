@@ -1,6 +1,8 @@
 # 3Dresume
 
-一个以滚动驱动镜头的 3D 个人主页模板。页面把角色 GLB、个人资料、履历与作品集放进同一个叙事里：滚动内容时，镜头沿模型动画推进；在本地开发模式下，还能直接用可视化工具替换模型、编辑关键帧、添加贴纸和修改个人资料。
+一个以滚动驱动镜头的 3D 个人主页模板。页面把角色 GLB、个人资料、履历与作品集放进同一个叙事里：滚动内容时，镜头沿模型动画推进；用户可用可视化工具替换模型、编辑关键帧、添加贴纸和修改个人资料。
+
+线上产品版使用 Supabase Auth 管理账户，微信支付 Native Payment 解锁编辑权限；个人资料、运镜、贴纸变换与模型选择存储在 Supabase，GLB 和贴纸图片存储在 Vercel Blob。部署说明见 [技术实施与部署指南](docs/技术实施与部署指南.md)。
 
 > 当前演示使用仓库内的角色模型、履历和作品素材。代码采用 [MIT](LICENSE) 许可；个人内容与素材不在 MIT 范围内，使用模板前请替换为自己的内容，详见 [NOTICE](NOTICE)。
 
@@ -18,7 +20,7 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:5173/`。左下角的工具按钮只在开发模式出现，用于保存模板配置；发布版会隐藏它，访客只能浏览你已经保存的成品。
+打开 `http://localhost:5173/`。本地演示不配置 Supabase 时只显示预设内容；要联调账户、支付和云端编辑，请按部署指南配置环境变量后使用 `vercel dev`。
 
 ```bash
 npm run typecheck  # TypeScript 检查
@@ -44,9 +46,9 @@ npm run preview    # 本地预览构建产物
 1. 打开左下角工具菜单。
 2. 用“资料”替换首屏个人信息；“预设 1”可随时恢复原始资料。
 3. 将自己的 `.glb` 复制到 `web/public/models/`，在“运镜 -> 模型”中刷新并选择。
-4. 在“运镜 -> 自定义”中逐帧添加镜头与焦点关键帧，保存为 `public/director/camera-overrides.json`。
-5. 将贴纸图片放到 `web/stickers/`，在“贴纸”里调整并按需生成新的 GLB。
-6. 完成后执行 `npm run build`，提交配置与素材，再部署 `web/dist/`。
+4. 在“运镜 -> 自定义”中逐帧添加镜头与焦点关键帧，保存到当前账户的云端项目。
+5. 在“贴纸”中上传 PNG、JPG 或 WebP，在模型上调整后保存到云端项目。
+6. 完成后执行 `npm run build`，将 `web/` 作为 Vercel Root Directory 部署。
 
 详细步骤见 [可视化编辑器使用说明](tutor/可视化编辑器使用说明.md)。
 
@@ -56,10 +58,10 @@ npm run preview    # 本地预览构建产物
 
 | 要修改的内容 | 文件或工具 |
 | --- | --- |
-| 首屏资料、双语介绍、自定义信息 | 左下角“资料” -> `public/profile/profile.json` |
+| 首屏资料、双语介绍、自定义信息 | 左下角“资料” -> Supabase `sen_projects.profile` |
 | 当前模型选择 | 左下角“运镜 -> 模型” -> `public/models/model-selection.json` |
-| 自定义镜头关键帧 | 左下角“运镜 -> 自定义” -> `public/director/camera-overrides.json` |
-| 贴纸位置和烘焙结果 | 左下角“贴纸” -> `stickers/stickers.json`、`public/models/` |
+| 自定义镜头关键帧 | 左下角“运镜 -> 自定义” -> Supabase `sen_projects.director` |
+| 贴纸文件与位置 | 左下角“贴纸” -> Vercel Blob、Supabase `sen_projects.stickers` |
 | 履历时间轴 | `src/ui/Resume.tsx` |
 | 履历焦点节点 | `src/data/focusPoints.ts` |
 | 作品列表 | `src/data/works.ts` |
@@ -105,12 +107,9 @@ web/
 
 ## 部署
 
-`npm run build` 生成 `web/dist/`。项目的 Vite `base` 为 `./`，可部署到 GitHub Pages、Cloudflare Pages 或任意静态目录。
+将 Vercel 的 Root Directory 设置为 `web`，Build Command 设置为 `npm run build`，Output Directory 设置为 `dist`。配置 Supabase、Vercel Blob 和微信支付变量后即可部署。
 
-部署前先在本地编辑并保存：静态托管无法写回仓库中的 JSON 或 GLB 文件。需要上线后继续让访客编辑并持久化数据时，应另行接入认证、数据库和服务端存储。
-
-- [部署到 GitHub Pages](tutor/部署教程/1-部署到-GitHub-Pages.md)
-- [部署到 Cloudflare Pages](tutor/部署教程/2-部署到-Cloudflare-Pages.md)
+完整步骤、数据库 SQL、支付回调配置和安全边界见 [技术实施与部署指南](docs/技术实施与部署指南.md)。
 
 ## 深入阅读
 

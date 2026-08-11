@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { apiJson } from '../product/api'
 
 export type ProfileFact = { id: string; label: string; value: string }
 
@@ -87,9 +88,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   load: async () => {
     set({ busy: true })
     try {
-      const response = await fetch('/api/profile', { credentials: 'include' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
+      const result = await apiJson<{ config: unknown }>('/api/profile')
       set({ config: normalize(result.config), status: '' })
     } catch (error) {
       set({ status: `加载资料失败: ${String(error)}` })
@@ -100,14 +99,13 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   save: async () => {
     set({ busy: true, status: '保存中...' })
     try {
-      const response = await fetch('/api/profile', {
+      const data = await apiJson<any>('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(get().config),
       })
-      const data = await response.json()
       if (!data.ok) throw new Error(data.error || '保存失败')
-      set({ status: '已写入 public/profile/profile.json' })
+      set({ status: '已保存到你的云端项目' })
     } catch (error) {
       set({ status: `保存失败: ${String(error)}` })
     } finally {

@@ -9,6 +9,7 @@ import StickerPlanes from '../editor/StickerPlanes'
 import { useModelUrl, useStickerEditor, useMan } from '../editor/store'
 import { sampleDirector } from '../director/sample'
 import { useDirectorStore } from '../director/store'
+import { apiJson } from '../product/api'
 
 useGLTF.preload(`${import.meta.env.BASE_URL}models/liwei.rigged.glb`)
 
@@ -650,8 +651,7 @@ export default function Scene() {
     loadDirector()
   }, [loadDirector])
   useEffect(() => {
-    fetch('/api/models', { credentials: 'include' })
-      .then((response) => (response.ok ? response.json() : null))
+    apiJson<{ model?: { file?: string; url?: string } }>('/api/models')
       .then((config) => {
         if (typeof config?.model?.file === 'string' && typeof config?.model?.url === 'string') selectRemoteModel(config.model.file, config.model.url)
       })

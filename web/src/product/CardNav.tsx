@@ -26,7 +26,8 @@ export default function CardNav({ items, onAccount }: { items: NavItem[]; onAcco
   const toggle = () => {
     if (!timeline.current) return
     setOpen((value) => {
-      value ? timeline.current?.reverse() : timeline.current?.play(0)
+      if (value) timeline.current?.reverse()
+      else timeline.current?.play(0)
       return !value
     })
   }

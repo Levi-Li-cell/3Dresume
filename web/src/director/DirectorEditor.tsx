@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useDirectorStore } from './store'
 import type { DirectorKeyframe, Vec3 } from './types'
 import { useModelUrl } from '../editor/store'
+import { apiJson, supabaseClient } from '../product/api'
+import { upload as uploadBlob } from '@vercel/blob/client'
 import './director.css'
 
 function RangeField({
@@ -83,8 +85,7 @@ function ModelPicker() {
   const refresh = async () => {
     setStatus('正在读取 models 文件夹...')
     try {
-      const response = await fetch('/api/models')
-      const data = await response.json()
+      const data = await apiJson<any>('/api/models')
       if (!data.ok) throw new Error(data.error || '读取失败')
       setFiles(data.files || [])
       setStatus(data.files?.length ? '' : '未找到 GLB。请先将文件放入 web/public/models/。')
@@ -96,13 +97,8 @@ function ModelPicker() {
   const apply = async (file: string) => {
     setStatus(`正在应用 ${file}...`)
     try {
-      const response = await fetch('/api/models', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selected: file }),
-      })
-      const data = await response.json()
-      if (!data.ok) throw new Error(data.error || '保存失败')
+      const data = await apiJson<any>('/api/models')
+      if (data.model?.file !== file) throw new Error('模型已被新的上传覆盖，请刷新列表')
       if (data.model?.url) selectRemote(file, data.model.url)
       else selectFile(file)
       setStatus('已应用。缺少相机或 focus 节点的模型会使用自动居中与静态镜头。')
@@ -117,8 +113,16 @@ function ModelPicker() {
     if (file.size > 50 * 1024 * 1024) return setStatus('模型文件不能超过 50 MB。')
     setStatus(`正在上传 ${file.name}...`)
     try {
-      const response = await fetch('/api/models/upload', { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name), 'content-type': 'model/gltf-binary' }, body: file })
-      const data = await response.json()
+      const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+      if (String.fromCharCode(...magic) !== 'glTF') throw new Error('文件不是有效的 GLB 二进制格式')
+      const { data: session } = await supabaseClient().auth.getSession()
+      const token = session.session?.access_token
+      const userId = session.session?.user.id
+      if (!token || !userId) throw new Error('请先登录')
+      const name = file.name.replace(/[^\w. -]/g, '').replace(/\s+/g, '-').slice(0, 120)
+      const blob = await uploadBlob(`sen-3d/${userId}/models/${name}`, file, { access: 'public', contentType: 'model/gltf-binary', multipart: file.size > 4 * 1024 * 1024, handleUploadUrl: '/api/models/upload', headers: { authorization: `Bearer ${token}` } })
+      await apiJson('/api/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: blob.pathname.split('/').pop(), originalName: file.name, url: blob.url, size: file.size }) })
+      const data: any = { ok: true, model: { file: blob.pathname.split('/').pop() || file.name, url: blob.url } }
       if (!data.ok) throw new Error(data.error || '上传失败')
       selectRemote(data.model.file, data.model.url)
       await refresh()
