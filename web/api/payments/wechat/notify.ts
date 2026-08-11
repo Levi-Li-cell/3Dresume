@@ -1,5 +1,6 @@
 import { decryptNotification, verifyNotification } from '../../_lib/wechat.js'
 import { send, supabase } from '../../_lib/http.js'
+import { settleWechatPayment } from '../../_lib/payment-core.mjs'
 
 export const config = { api: { bodyParser: false } }
 
@@ -17,18 +18,24 @@ export default async function handler(req: any, res: any) {
     const event = JSON.parse(raw)
     const payment = decryptNotification(event.resource)
     if (payment.trade_state !== 'SUCCESS') return send(res, 200, { received: true })
-    const orderId = String(payment.out_trade_no || '')
-    const transactionId = String(payment.transaction_id || '')
-    if (!orderId || !transactionId) return send(res, 400, { error: 'Invalid payment payload' })
     const db = supabase()
-    const { data: order, error: orderError } = await db.from('sen_orders').select('id,user_id,amount_fen,status').eq('id', orderId).maybeSingle()
-    if (orderError) throw orderError
-    if (!order || Number(payment.amount?.total) !== order.amount_fen) return send(res, 400, { error: 'Order validation failed' })
     const paidAt = new Date().toISOString()
-    const { error: updateError } = await db.from('sen_orders').update({ status: 'paid', transaction_id: transactionId, paid_at: paidAt }).eq('id', orderId).neq('status', 'paid')
-    if (updateError) throw updateError
-    const { error: licenseError } = await db.from('sen_licenses').upsert({ user_id: order.user_id, product_code: 'sen-3d-editor', status: 'active', order_id: orderId, granted_at: paidAt }, { onConflict: 'user_id,product_code' })
-    if (licenseError) throw licenseError
+    const result = await settleWechatPayment({
+      findOrder: async (orderId: string) => {
+        const { data, error } = await db.from('sen_orders').select('id,user_id,amount_fen,status').eq('id', orderId).maybeSingle()
+        if (error) throw error
+        return data
+      },
+      markPaid: async (orderId: string, transactionId: string, time: string) => {
+        const { error } = await db.from('sen_orders').update({ status: 'paid', transaction_id: transactionId, paid_at: time }).eq('id', orderId).neq('status', 'paid')
+        if (error) throw error
+      },
+      grantLicense: async (userId: string, orderId: string, time: string) => {
+        const { error } = await db.from('sen_licenses').upsert({ user_id: userId, product_code: 'sen-3d-editor', status: 'active', order_id: orderId, granted_at: time }, { onConflict: 'user_id,product_code' })
+        if (error) throw error
+      },
+    }, payment, paidAt)
+    if (!result.accepted) return send(res, 400, { error: 'Order validation failed' })
     return send(res, 200, { received: true })
   } catch {
     return send(res, 500, { error: 'Notification processing failed' })

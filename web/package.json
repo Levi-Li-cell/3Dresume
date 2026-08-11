@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "typecheck:api": "tsc -p tsconfig.api.json",
+    "test:payment": "node --test scripts/payment-smoke-test.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
