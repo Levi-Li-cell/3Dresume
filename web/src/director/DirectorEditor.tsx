@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useDirectorStore } from './store'
 import type { DirectorKeyframe, Vec3 } from './types'
 import { useModelUrl } from '../editor/store'
@@ -75,8 +75,10 @@ function Panel({ children }: { children: ReactNode }) {
 function ModelPicker() {
   const [files, setFiles] = useState<string[]>([])
   const [status, setStatus] = useState('')
+  const uploadRef = useRef<HTMLInputElement>(null)
   const currentFile = useModelUrl((state) => state.file)
   const selectFile = useModelUrl((state) => state.selectFile)
+  const selectRemote = useModelUrl((state) => state.selectRemote)
 
   const refresh = async () => {
     setStatus('正在读取 models 文件夹...')
@@ -101,11 +103,27 @@ function ModelPicker() {
       })
       const data = await response.json()
       if (!data.ok) throw new Error(data.error || '保存失败')
-      selectFile(file)
+      if (data.model?.url) selectRemote(file, data.model.url)
+      else selectFile(file)
       setStatus('已应用。缺少相机或 focus 节点的模型会使用自动居中与静态镜头。')
     } catch (error) {
       setStatus(`应用失败: ${String(error)}`)
     }
+  }
+
+  const upload = async (file?: File) => {
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.glb')) return setStatus('仅支持 .glb 文件。')
+    if (file.size > 50 * 1024 * 1024) return setStatus('模型文件不能超过 50 MB。')
+    setStatus(`正在上传 ${file.name}...`)
+    try {
+      const response = await fetch('/api/models/upload', { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name), 'content-type': 'model/gltf-binary' }, body: file })
+      const data = await response.json()
+      if (!data.ok) throw new Error(data.error || '上传失败')
+      selectRemote(data.model.file, data.model.url)
+      await refresh()
+      setStatus('模型已上传。缺少相机或 focus 节点时将使用兼容模式。')
+    } catch (error) { setStatus(`上传失败: ${String(error)}`) }
   }
 
   useEffect(() => {
@@ -119,9 +137,9 @@ function ModelPicker() {
           <span className="de-kicker">MODEL LIBRARY</span>
           <h3>选择模型</h3>
         </div>
-        <button className="de-btn" onClick={refresh}>刷新</button>
+        <div><input ref={uploadRef} type="file" accept=".glb,model/gltf-binary" hidden onChange={(event) => void upload(event.target.files?.[0])} /><button className="de-btn" onClick={() => uploadRef.current?.click()}>上传 GLB</button><button className="de-btn" onClick={refresh}>刷新</button></div>
       </div>
-      <p className="de-models-hint">将 .glb 文件复制到 <code>web/public/models/</code>，刷新后选择即可。</p>
+      <p className="de-models-hint">上传 GLB 后会保存至你的项目，文件上限为 50 MB。</p>
       <div className="de-model-list">
         {files.map((file) => (
           <button

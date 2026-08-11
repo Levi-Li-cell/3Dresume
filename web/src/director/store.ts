@@ -88,10 +88,10 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   load: async () => {
     set({ busy: true, status: '加载运镜配置...' })
     try {
-      const url = `${import.meta.env.BASE_URL}director/camera-overrides.json?t=${Date.now()}`
-      const response = await fetch(url)
+      const response = await fetch('/api/director', { credentials: 'include' })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const config = normalizeConfig(await response.json())
+      const result = await response.json()
+      const config = normalizeConfig(result.config)
       set({ config, status: config.keyframes.length ? '' : '当前没有额外运镜关键帧' })
     } catch (error) {
       set({ config: EMPTY_DIRECTOR_CONFIG, status: `加载失败: ${String(error)}` })

@@ -640,7 +640,7 @@ function Post2({
 export default function Scene() {
   const editorOpen = useStickerEditor((s) => s.open)
   const loadDirector = useDirectorStore((s) => s.load)
-  const selectModel = useModelUrl((s) => s.selectFile)
+  const selectRemoteModel = useModelUrl((s) => s.selectRemote)
   const focusRef = useRef(new THREE.Vector3(0, 1.3, 0))
   const frameRef = useRef(0)
   // 逐锚点景深（intro3d 导出的 glb 携带）：Man2 每帧写、Post2 读。dofBokeh=-1 表示无参数 → Post2 走旧全局混合。
@@ -650,16 +650,13 @@ export default function Scene() {
     loadDirector()
   }, [loadDirector])
   useEffect(() => {
-    const url = `${import.meta.env.BASE_URL}models/model-selection.json?t=${Date.now()}`
-    fetch(url)
+    fetch('/api/models', { credentials: 'include' })
       .then((response) => (response.ok ? response.json() : null))
       .then((config) => {
-        if (typeof config?.selected === 'string' && /^[\w. -]+\.glb$/i.test(config.selected)) {
-          selectModel(config.selected)
-        }
+        if (typeof config?.model?.file === 'string' && typeof config?.model?.url === 'string') selectRemoteModel(config.model.file, config.model.url)
       })
       .catch(() => undefined)
-  }, [selectModel])
+  }, [selectRemoteModel])
   return (
     <>
       <GradientBackground />

@@ -4,8 +4,16 @@ import react from '@vitejs/plugin-react'
 import stickerEditorApi from './scripts/sticker-editor-api.mjs'
 
 export default defineConfig({
-  // 打包后资源用相对路径（dist/index.html 引用 ./assets/...，可放任意子目录/直接打开）
-  base: './',
+  // Commerce service serves the SPA from the domain root, so direct routes such
+  // as /account and /studio must resolve assets from /assets.
+  base: '/',
   plugins: [react(), stickerEditorApi()],
-  server: { host: true, port: 5173 },
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api': 'http://127.0.0.1:8787',
+      '/assets': 'http://127.0.0.1:8787',
+    },
+  },
 })

@@ -87,9 +87,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   load: async () => {
     set({ busy: true })
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}profile/profile.json?t=${Date.now()}`)
+      const response = await fetch('/api/profile', { credentials: 'include' })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      set({ config: normalize(await response.json()), status: '' })
+      const result = await response.json()
+      set({ config: normalize(result.config), status: '' })
     } catch (error) {
       set({ status: `加载资料失败: ${String(error)}` })
     } finally {
