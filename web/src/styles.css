@@ -297,6 +297,29 @@ canvas {
 }
 
 /* 正文内 ZOOOP 链接：容器是 pointer-events:none，链接需单独开启可点 */
+.profile-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px 14px;
+  margin: 18px auto 0;
+  max-width: min(660px, 88vw);
+  list-style: none;
+  color: rgba(244, 241, 234, 0.66);
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+}
+
+.profile-facts li {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.profile-facts span {
+  color: #ffd9b3;
+}
+
 .about-link {
   pointer-events: auto;
   color: inherit;

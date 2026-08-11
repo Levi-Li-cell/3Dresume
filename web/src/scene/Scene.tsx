@@ -152,6 +152,7 @@ function Man2({
   const get = useThree((s) => s.get)
   const modelUrl = useModelUrl((s) => s.url)
   const directorKeyframes = useDirectorStore((s) => s.config.keyframes)
+  const directorMode = useDirectorStore((s) => s.config.mode)
   const previewFrame = useDirectorStore((s) => s.previewFrame)
   const { scene, animations } = useGLTF(modelUrl)
 
@@ -198,11 +199,17 @@ function Man2({
     } else {
       eyes.forEach((e) => (e.sx = 0))
     }
-    const pts = POINTS.map((n) => pmap[n] || null)
+    // Imported models often do not carry the template's focus empties. Create one
+    // at the visible model center so the editor still has a predictable target.
+    const fallbackFocus = new THREE.Object3D()
+    const bounds = new THREE.Box3().setFromObject(clone)
+    if (!bounds.isEmpty()) bounds.getCenter(fallbackFocus.position)
+    clone.add(fallbackFocus)
+    const pts = POINTS.map((n) => pmap[n] || fallbackFocus)
     // 作品区锚点：优先 focus-works（旧 glb）；缺省（intro3d 统一命名不导）则复用末时间轴节点 focus-M。
-    const works = focusNode || pts[pts.length - 1] || null
+    const works = focusNode || pts[pts.length - 1] || fallbackFocus
     // 首页锚点：focus-start / focus-0；都没有则回退首个时间轴节点。
-    const start = startPoint || pts[0] || null
+    const start = startPoint || pts[0] || fallbackFocus
     // 逐锚点景深参数（intro3d 导出写入 userData/extras）：dofBokeh 虚化强度、dofFocusRange 清晰范围、
     // dofEnabled 开关（关→有效 bokeh 记 0）。has=false（老 glb 无这些字段）→ Post2 走原全局帧混合，行为不变。
     const ud = (o: any): any => o?.userData ?? {}
@@ -307,8 +314,16 @@ function Man2({
   const camPos = useRef(new THREE.Vector3())
   const camQuat = useRef(new THREE.Quaternion())
   const camScl = useRef(new THREE.Vector3())
+  const fallbackCam = useRef({ position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), fov: 39 })
   const paraEuler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
   const paraQuat = useRef(new THREE.Quaternion())
+
+  useEffect(() => {
+    const camera: any = get().camera
+    fallbackCam.current.position.copy(camera.position)
+    fallbackCam.current.quaternion.copy(camera.quaternion)
+    fallbackCam.current.fov = camera.fov
+  }, [get, model])
 
   useFrame((_, dt) => {
     const a = 1 - Math.pow(cam.damping, dt)
@@ -391,12 +406,14 @@ function Man2({
     if (actions.current.length) {
       const t = frame / FPS
       for (const { action: act, duration } of actions.current) {
-        act.time = Math.min(t, duration)
+        // Custom mode preserves non-camera animation, but freezes CameraAction at frame 0.
+        act.time = act.getClip().name === 'CameraAction' && directorMode === 'custom' ? 0 : Math.min(t, duration)
       }
       mixer.update(0)
     }
     if (frameRef) frameRef.current = frame
     const director = sampleDirector(directorKeyframes, frame)
+    const hasCustomKeyframes = directorMode === 'custom' && directorKeyframes.length > 0
 
     // 履历段用于对焦的连续索引：由平滑后的帧反推，确保对焦与镜头同步
     const s = THREE.MathUtils.clamp(frame / FRAMES_PER_NODE - 1, -1, M - 1)
@@ -404,7 +421,9 @@ function Man2({
     // 3) 自动对焦：作品区跟随 glb focus-works 空对象；履历区按 focus 锚点插值
     //    （在 mixer.update 之后取世界坐标，保证与当前帧一致）
     if (focusRef) {
-      if (inWorks && focusNode) {
+      if (directorMode === 'custom' && startPoint) {
+        startPoint.getWorldPosition(focusRef.current)
+      } else if (inWorks && focusNode) {
         focusNode.getWorldPosition(focusRef.current)
       } else if (s < 0 && startPoint && points[0]) {
         startPoint.getWorldPosition(posA.current)
@@ -421,13 +440,13 @@ function Man2({
           focusRef.current.lerpVectors(posA.current, posB.current, f)
         }
       }
-      if (directorKeyframes.length) focusRef.current.add(new THREE.Vector3(...director.focusOffset))
+      if (hasCustomKeyframes) focusRef.current.add(new THREE.Vector3(...director.focusOffset))
     }
 
     // 3b) 景深：glb 带逐锚点参数（intro3d 导出）时，沿当前连续索引在相邻锚点间插值 bokeh/focusRange，
     //     写入 refs 供 Post2 直接采用（忠实还原 intro3d）；无参数（老 glb）则写哨兵 -1 → Post2 走原全局帧混合。
     if (dofBokehRef && dofRangeRef) {
-      if (directorKeyframes.length) {
+      if (hasCustomKeyframes) {
         dofBokehRef.current = director.bokehScale
         dofRangeRef.current = director.focusRange
       } else if (!dof.has) {
@@ -449,16 +468,25 @@ function Man2({
 
     // 2b) 拷贝 glb 相机世界变换到默认相机，并绕焦点做轨道式鼠标视差（焦点屏幕位置不变）
     const camera: any = get().camera
-    if (glbCam && camera.isPerspectiveCamera) {
-      glbCam.updateWorldMatrix(true, false)
-      glbCam.matrixWorld.decompose(camPos.current, camQuat.current, camScl.current)
+    if (camera.isPerspectiveCamera) {
+      if (glbCam) {
+        glbCam.updateWorldMatrix(true, false)
+        glbCam.matrixWorld.decompose(camPos.current, camQuat.current, camScl.current)
+      } else {
+        camPos.current.copy(fallbackCam.current.position)
+        camQuat.current.copy(fallbackCam.current.quaternion)
+      }
       // 鼠标缓动：无限趋近目标值
-      const me = 1 - Math.pow(cam.parallaxEase, dt)
-      smouse.current.x += (mouse.current.x - smouse.current.x) * me
-      smouse.current.y += (mouse.current.y - smouse.current.y) * me
-      const ax = THREE.MathUtils.degToRad(cam.parallax)
-      paraEuler.current.set(-smouse.current.y * ax, -smouse.current.x * ax, 0)
-      paraQuat.current.setFromEuler(paraEuler.current)
+      if (directorMode === 'custom') {
+        paraQuat.current.identity()
+      } else {
+        const me = 1 - Math.pow(cam.parallaxEase, dt)
+        smouse.current.x += (mouse.current.x - smouse.current.x) * me
+        smouse.current.y += (mouse.current.y - smouse.current.y) * me
+        const ax = THREE.MathUtils.degToRad(cam.parallax)
+        paraEuler.current.set(-smouse.current.y * ax, -smouse.current.x * ax, 0)
+        paraQuat.current.setFromEuler(paraEuler.current)
+      }
       // 绕焦点旋转相机位置 + 同步旋转朝向 → 焦点不动，仅四周产生视差
       tmpVec.current
         .copy(camPos.current)
@@ -467,12 +495,13 @@ function Man2({
       // 移动端沿「焦点→相机」方向整体拉远：焦点屏幕位置不变，主体更小、留白更多
       if (isMobile.current) tmpVec.current.multiplyScalar(cam.mobilePullback)
       tmpVec.current.add(focusRef.current)
-      if (directorKeyframes.length) tmpVec.current.add(new THREE.Vector3(...director.positionOffset))
+      if (hasCustomKeyframes) tmpVec.current.add(new THREE.Vector3(...director.positionOffset))
       camera.position.copy(tmpVec.current)
-      camera.quaternion.multiplyQuaternions(paraQuat.current, camQuat.current)
+      if (directorMode === 'custom') camera.lookAt(focusRef.current)
+      else camera.quaternion.multiplyQuaternions(paraQuat.current, camQuat.current)
       // 移动端「时间轴阶段」把镜头整体左移，让主体从满宽文字后错开。
       // 权重：从 Hero 渐入(s: -0.8→0.3)、进入作品区随 smoothOff 渐出 → 无跳变。
-      if (isMobile.current && cam.mobileTimelineShift !== 0) {
+      if (directorMode !== 'custom' && isMobile.current && cam.mobileTimelineShift !== 0) {
         const tlWeight = THREE.MathUtils.smoothstep(s, -0.8, 0.3) * (1 - smoothOff)
         if (tlWeight > 0) {
           // translateX 沿局部 +X（屏幕右）；取负 → 相机左移
@@ -480,7 +509,8 @@ function Man2({
           camera.translateX(-dist * cam.mobileTimelineShift * tlWeight)
         }
       }
-      const fov = THREE.MathUtils.clamp(glbCam.fov + director.fovOffset, 10, 100)
+      const baseFov = glbCam?.fov ?? fallbackCam.current.fov
+      const fov = THREE.MathUtils.clamp(baseFov + (hasCustomKeyframes ? director.fovOffset : 0), 10, 100)
       if (camera.fov !== fov) {
         camera.fov = fov
         camera.updateProjectionMatrix()
@@ -610,6 +640,7 @@ function Post2({
 export default function Scene() {
   const editorOpen = useStickerEditor((s) => s.open)
   const loadDirector = useDirectorStore((s) => s.load)
+  const selectModel = useModelUrl((s) => s.selectFile)
   const focusRef = useRef(new THREE.Vector3(0, 1.3, 0))
   const frameRef = useRef(0)
   // 逐锚点景深（intro3d 导出的 glb 携带）：Man2 每帧写、Post2 读。dofBokeh=-1 表示无参数 → Post2 走旧全局混合。
@@ -618,6 +649,17 @@ export default function Scene() {
   useEffect(() => {
     loadDirector()
   }, [loadDirector])
+  useEffect(() => {
+    const url = `${import.meta.env.BASE_URL}models/model-selection.json?t=${Date.now()}`
+    fetch(url)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((config) => {
+        if (typeof config?.selected === 'string' && /^[\w. -]+\.glb$/i.test(config.selected)) {
+          selectModel(config.selected)
+        }
+      })
+      .catch(() => undefined)
+  }, [selectModel])
   return (
     <>
       <GradientBackground />

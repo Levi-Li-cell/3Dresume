@@ -137,7 +137,7 @@ function StickerRow({ file }: { file: string }) {
 
 export default function StickerEditor() {
   const open = useStickerEditor((s) => s.open)
-  const toggle = useStickerEditor((s) => s.toggle)
+  const setOpen = useStickerEditor((s) => s.setOpen)
   const load = useStickerEditor((s) => s.load)
   const files = useStickerEditor((s) => s.files)
   const status = useStickerEditor((s) => s.status)
@@ -174,14 +174,11 @@ export default function StickerEditor() {
 
   return (
     <div className="sticker-editor">
-      <button className="se-fab" onClick={toggle} title="贴纸编辑器">
-        📌 贴纸
-      </button>
       {open && (
         <div className="se-panel">
           <div className="se-head">
             <span>贴纸编辑器</span>
-            <button className="se-btn" onClick={toggle}>
+            <button className="se-btn" onClick={() => setOpen(false)}>
               关闭
             </button>
           </div>

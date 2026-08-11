@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import * as THREE from 'three'
@@ -9,6 +9,9 @@ import Works from './ui/Works'
 import LoadingScreen from './ui/LoadingScreen'
 import StickerEditor from './editor/StickerEditor'
 import DirectorEditor from './director/DirectorEditor'
+import ProfileEditor from './profile/ProfileEditor'
+import ToolsMenu from './tools/ToolsMenu'
+import { selectProfile, useProfileStore, type ProfileData } from './profile/store'
 import { useStore } from './store'
 
 function Backdrop() {
@@ -39,8 +42,8 @@ const COPY = {
   },
 }
 
-function Hero({ lang, cueOpacity }: { lang: Lang; cueOpacity: MotionValue<number> }) {
-  const { title, paragraphs } = COPY[lang]
+function Hero({ lang, cueOpacity, profile }: { lang: Lang; cueOpacity: MotionValue<number>; profile: ProfileData }) {
+  const { title, paragraph } = profile.about[lang]
   const aboutRef = useRef(null)
   // 触发起点提前：about 顶部位于视口 60% 处即开始（offset[0] 进度 0），到达顶部为进度 1
   const { scrollYProgress } = useScroll({
@@ -68,11 +71,12 @@ function Hero({ lang, cueOpacity }: { lang: Lang; cueOpacity: MotionValue<number
           <motion.h1 className="about-title" style={{ y: titleY, letterSpacing: titleSpacing }}>
             {title}
           </motion.h1>
-          {paragraphs.map((p, i) => (
-            <motion.p key={i} className="about-body" style={{ y: bodyY }}>
-              {p}
-            </motion.p>
-          ))}
+          <motion.p className="about-body" style={{ y: bodyY }}>{paragraph}</motion.p>
+          {profile.facts.length > 0 && (
+            <ul className="profile-facts">
+              {profile.facts.map((fact) => <li key={fact.id}><span>{fact.label}</span>{fact.value}</li>)}
+            </ul>
+          )}
         </div>
       </motion.div>
       <motion.div className="scroll-cue" style={{ opacity: cueOpacity }} aria-hidden="true">
@@ -95,6 +99,12 @@ function LangToggle({ lang, onToggle }: { lang: Lang; onToggle: () => void }) {
 
 export default function App() {
   const [lang, setLang] = useState<Lang>('zh')
+  const profileConfig = useProfileStore((state) => state.config)
+  const loadProfile = useProfileStore((state) => state.load)
+  const profile = selectProfile(profileConfig)
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
   const { scrollY } = useScroll()
   // 作品区蒙层：以作品区顶部从视口底进入到视口中部的进度，驱动 3D 渐暗 + 模糊
   const worksRef = useRef(null)
@@ -172,23 +182,25 @@ export default function App() {
         <span className="hero-mark bl">+</span>
         <span className="hero-mark br">+</span>
         <div className="hero-meta hm-tl">
-          <span className="hm-name">Sen Zheng 郑越升</span>
-          <span>Creative Technologist</span>
+          <span className="hm-name">{profile.name}</span>
+          <span>{profile.role}</span>
         </div>
-        <div className="hero-meta hm-tr">Portfolio — 2026</div>
-        <div className="hero-meta hm-bl">Code · Art · Play</div>
-        <div className="hero-meta hm-right">Based in Shenzhen</div>
+        <div className="hero-meta hm-tr">{profile.portfolio}</div>
+        <div className="hero-meta hm-bl">{profile.footer}</div>
+        <div className="hero-meta hm-right">{profile.location}</div>
       </motion.div>
 
       {/* 全屏胶片噪点蒙层（multiply 混合） */}
       {import.meta.env.DEV && <StickerEditor />}
       {import.meta.env.DEV && <DirectorEditor />}
+      {import.meta.env.DEV && <ProfileEditor />}
+      {import.meta.env.DEV && <ToolsMenu />}
 
       <NoiseOverlay />
 
       {/* 可滚动内容 */}
       <main className="content">
-        <Hero lang={lang} cueOpacity={cueOpacity} />
+        <Hero lang={lang} cueOpacity={cueOpacity} profile={profile} />
         <Resume lang={lang} />
         <Works lang={lang} innerRef={worksRef} />
       </main>

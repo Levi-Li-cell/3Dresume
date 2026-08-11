@@ -24,10 +24,13 @@ export default function stickerEditorApi() {
   const repoRoot = path.resolve(__dirname, '..', '..');
   const snapshotsDir = path.join(stickersDir, 'snapshots');
   const modelsDir = path.join(__dirname, '..', 'public', 'models');
+  const modelSelectionFile = path.join(modelsDir, 'model-selection.json');
   const glbFile = path.join(modelsDir, 'liwei.rigged.glb');
   const cleanGlbFile = path.join(modelsDir, 'liwei.rigged.clean.glb');
   const directorDir = path.join(__dirname, '..', 'public', 'director');
   const directorFile = path.join(directorDir, 'camera-overrides.json');
+  const profileDir = path.join(__dirname, '..', 'public', 'profile');
+  const profileFile = path.join(profileDir, 'profile.json');
   const MAX_SNAPSHOTS = 12;
 
   const sendJson = (res, status, obj) => {
@@ -184,6 +187,100 @@ export default function stickerEditorApi() {
   return {
     name: 'sticker-editor-api',
     configureServer(server) {
+      const listModels = () =>
+        fs.existsSync(modelsDir)
+          ? fs.readdirSync(modelsDir).filter((file) => /^[\w. -]+\.glb$/i.test(file)).sort()
+          : [];
+      const readSelectedModel = () => {
+        try {
+          return JSON.parse(fs.readFileSync(modelSelectionFile, 'utf8')).selected || 'liwei.rigged.glb';
+        } catch {
+          return 'liwei.rigged.glb';
+        }
+      };
+
+      server.middlewares.use('/api/profile', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk) => (body += chunk.toString('utf8')));
+        req.on('end', () => {
+          try {
+            const config = JSON.parse(body);
+            const custom = config?.custom;
+            if (!custom || typeof custom !== 'object') throw new Error('custom profile data is required');
+            const string = (value, field, max = 4000) => {
+              if (typeof value !== 'string' || value.length > max) throw new Error(`${field} must be a string up to ${max} characters`);
+              return value;
+            };
+            const about = custom.about;
+            if (!about || typeof about !== 'object') throw new Error('about is required');
+            const facts = Array.isArray(custom.facts) ? custom.facts : [];
+            if (facts.length > 30) throw new Error('facts may contain at most 30 items');
+            const normalized = {
+              version: 1,
+              mode: config.mode === 'custom' ? 'custom' : 'preset',
+              custom: {
+                name: string(custom.name, 'name', 120),
+                role: string(custom.role, 'role', 160),
+                portfolio: string(custom.portfolio, 'portfolio', 160),
+                footer: string(custom.footer, 'footer', 160),
+                location: string(custom.location, 'location', 160),
+                about: {
+                  zh: {
+                    title: string(about.zh?.title, 'about.zh.title', 200),
+                    paragraph: string(about.zh?.paragraph, 'about.zh.paragraph'),
+                  },
+                  en: {
+                    title: string(about.en?.title, 'about.en.title', 200),
+                    paragraph: string(about.en?.paragraph, 'about.en.paragraph'),
+                  },
+                },
+                facts: facts.map((fact, index) => ({
+                  id: string(fact?.id, `facts[${index}].id`, 120),
+                  label: string(fact?.label, `facts[${index}].label`, 120),
+                  value: string(fact?.value, `facts[${index}].value`, 500),
+                })),
+              },
+            };
+            fs.mkdirSync(profileDir, { recursive: true });
+            fs.writeFileSync(profileFile, JSON.stringify(normalized, null, 2), 'utf8');
+            sendJson(res, 200, { ok: true });
+          } catch (e) {
+            sendJson(res, 400, { ok: false, error: String((e && e.message) || e) });
+          }
+        });
+      });
+
+      server.middlewares.use('/api/models', (req, res) => {
+        if (req.method === 'GET') {
+          sendJson(res, 200, { ok: true, files: listModels(), selected: readSelectedModel() });
+          return;
+        }
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk) => (body += chunk.toString('utf8')));
+        req.on('end', () => {
+          try {
+            const selected = String(JSON.parse(body).selected || '');
+            if (!/^[\w. -]+\.glb$/i.test(selected) || !listModels().includes(selected)) {
+              throw new Error('selected model must be an existing .glb file in public/models');
+            }
+            fs.writeFileSync(modelSelectionFile, JSON.stringify({ selected }, null, 2), 'utf8');
+            sendJson(res, 200, { ok: true, selected });
+          } catch (e) {
+            sendJson(res, 400, { ok: false, error: String((e && e.message) || e) });
+          }
+        });
+      });
+
       server.middlewares.use('/api/director', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -201,7 +298,7 @@ export default function stickerEditorApi() {
             fs.mkdirSync(directorDir, { recursive: true });
             fs.writeFileSync(
               directorFile,
-              JSON.stringify({ version: 1, keyframes: config.keyframes }, null, 2),
+              JSON.stringify({ version: 2, mode: config.mode === 'custom' ? 'custom' : 'preset', keyframes: config.keyframes }, null, 2),
               'utf8'
             );
             sendJson(res, 200, { ok: true });

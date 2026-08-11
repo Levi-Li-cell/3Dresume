@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "mode": "custom",
+  "custom": {
+    "name": "levi 李伟",
+    "role": "Creative Technologist",
+    "portfolio": "Portfolio - 2026",
+    "footer": "Code · Art · Play",
+    "location": "Based in Shenzhen",
+    "about": {
+      "zh": {
+        "title": "About Levi",
+        "paragraph": "我是 Sen——一个游走在代码与艺术之间的创意技术人。我常年和 Coding、创意、有趣的交互 & 设计、CG 创作等打交道，喜欢研究并组合不同领域的技能，来创造并探索更多可能性。"
+      },
+      "en": {
+        "title": "About Levi",
+        "paragraph": "I'm Sen - a creative technologist living where code meets art. I spend my days around coding, creativity, playful interaction & design, and CG work. I love studying and combining skills across different fields - to create, and to explore more possibilities."
+      }
+    },
+    "facts": []
+  }
+}

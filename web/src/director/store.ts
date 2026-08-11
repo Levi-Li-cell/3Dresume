@@ -4,6 +4,7 @@ import {
   EMPTY_RUNTIME,
   type DirectorConfig,
   type DirectorKeyframe,
+  type DirectorMode,
   type DirectorRuntime,
 } from './types'
 
@@ -24,7 +25,8 @@ function normalizeConfig(raw: unknown): DirectorConfig {
   const config = raw as Partial<DirectorConfig> | null
   if (!config || !Array.isArray(config.keyframes)) return EMPTY_DIRECTOR_CONFIG
   return {
-    version: 1,
+    version: 2,
+    mode: config.mode === 'custom' ? 'custom' : 'preset',
     keyframes: config.keyframes
       .filter((key): key is DirectorKeyframe => !!key && Number.isFinite(key.frame))
       .map((key) => ({
@@ -61,12 +63,14 @@ type DirectorState = {
   status: string
   busy: boolean
   toggle: () => void
+  setOpen: (open: boolean) => void
   load: () => Promise<void>
   save: () => Promise<void>
   select: (id: string | null) => void
   setPreviewFrame: (frame: number | null) => void
   setRuntime: (runtime: DirectorRuntime) => void
   addKeyframe: () => void
+  setMode: (mode: DirectorMode) => void
   removeSelected: () => void
   updateSelected: (patch: Partial<DirectorKeyframe>) => void
 }
@@ -80,6 +84,7 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   status: '',
   busy: false,
   toggle: () => set((state) => ({ open: !state.open })),
+  setOpen: (open) => set({ open }),
   load: async () => {
     set({ busy: true, status: '加载运镜配置...' })
     try {
@@ -125,7 +130,8 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     const keyframe = keyframeAt(frame, state.runtime)
     set({
       config: {
-        version: 1,
+        version: 2,
+        mode: 'custom',
         keyframes: [...state.config.keyframes, keyframe].sort((a, b) => a.frame - b.frame),
       },
       selectedId: keyframe.id,
@@ -133,11 +139,21 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
       status: '已创建关键帧，拖动参数即可预览。',
     })
   },
+  setMode: (mode) =>
+    set({
+      config: { version: 2, mode, keyframes: [] },
+      selectedId: null,
+      previewFrame: null,
+      status:
+        mode === 'custom'
+          ? '已切换为自定义运镜。原始相机路径已冻结，请在时间轴上添加关键帧。'
+          : '已恢复预设 1：GLB 原始相机动画。',
+    }),
   removeSelected: () => {
     const selectedId = get().selectedId
     if (!selectedId) return
     set((state) => ({
-      config: { version: 1, keyframes: state.config.keyframes.filter((key) => key.id !== selectedId) },
+      config: { version: 2, mode: state.config.mode, keyframes: state.config.keyframes.filter((key) => key.id !== selectedId) },
       selectedId: null,
       status: '已移除关键帧，尚未保存。',
     }))
@@ -147,7 +163,10 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     if (!selectedId) return
     set((state) => ({
       config: {
-        version: 1,
+        version: 2,
+        // Editing a keyframe is an explicit customization. Preserve the existing
+        // keyframes when leaving Preset 1 so the first adjustment applies instantly.
+        mode: 'custom',
         keyframes: state.config.keyframes
           .map((key) => (key.id === selectedId ? { ...key, ...patch } : key))
           .sort((a, b) => a.frame - b.frame),

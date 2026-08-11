@@ -11,8 +11,11 @@ export type DirectorKeyframe = {
   focusRange: number
 }
 
+export type DirectorMode = 'preset' | 'custom'
+
 export type DirectorConfig = {
-  version: 1
+  version: 2
+  mode: DirectorMode
   keyframes: DirectorKeyframe[]
 }
 
@@ -24,7 +27,8 @@ export type DirectorRuntime = {
 }
 
 export const EMPTY_DIRECTOR_CONFIG: DirectorConfig = {
-  version: 1,
+  version: 2,
+  mode: 'preset',
   keyframes: [],
 }
 

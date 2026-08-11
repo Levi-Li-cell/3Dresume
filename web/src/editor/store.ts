@@ -246,11 +246,19 @@ export const useStickerEditor = create<EditorState>((set, get) => ({
   },
 }))
 
-type ModelUrlState = { url: string; bump: () => void }
+type ModelUrlState = { url: string; file: string; selectFile: (file: string) => void; bump: () => void }
 export const useModelUrl = create<ModelUrlState>((set) => ({
   url: `${import.meta.env.BASE_URL}models/liwei.rigged.glb`,
+  file: 'liwei.rigged.glb',
+  selectFile: (file) =>
+    set({
+      file,
+      url: `${import.meta.env.BASE_URL}models/${encodeURIComponent(file)}?t=${Date.now()}`,
+    }),
   bump: () =>
-    set({ url: `${import.meta.env.BASE_URL}models/liwei.rigged.glb?t=${Date.now()}` }),
+    set((state) => ({
+      url: `${import.meta.env.BASE_URL}models/${encodeURIComponent(state.file)}?t=${Date.now()}`,
+    })),
 }))
 
 type ManState = { man: THREE.Object3D | null; setMan: (m: THREE.Object3D | null) => void }

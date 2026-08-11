@@ -1,4 +1,60 @@
 {
-  "version": 1,
-  "keyframes": []
+  "version": 2,
+  "mode": "preset",
+  "keyframes": [
+    {
+      "id": "key-1786427216725",
+      "label": "镜头 0",
+      "frame": 0,
+      "positionOffset": [
+        0,
+        0,
+        0
+      ],
+      "focusOffset": [
+        0,
+        0,
+        0
+      ],
+      "fovOffset": -7.5,
+      "bokehScale": 5.1,
+      "focusRange": 1.49
+    },
+    {
+      "id": "key-1786426885156",
+      "label": "镜头 155",
+      "frame": 155,
+      "positionOffset": [
+        0,
+        -0.1,
+        0.24
+      ],
+      "focusOffset": [
+        0.3,
+        0.49,
+        0.47
+      ],
+      "fovOffset": 6.9,
+      "bokehScale": 5.1,
+      "focusRange": 1.49
+    },
+    {
+      "id": "key-1786427263076",
+      "label": "镜头 250",
+      "frame": 250,
+      "positionOffset": [
+        -0.13,
+        0.24,
+        0
+      ],
+      "focusOffset": [
+        0,
+        0,
+        0
+      ],
+      "fovOffset": -7,
+      "bokehScale": 5.1,
+      "focusRange": 1.49
+    }
+  ]
 }
